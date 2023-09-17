@@ -1,0 +1,6 @@
+{
+  "remappings": [
+    "@gnosis.pm/safe-contracts/contracts/common/=node_modules/@gnosis.pm/safe-contracts/contracts/common/",
+    "@gnosis.pm/safe-contracts/contracts/base/=node_modules/@gnosis.pm/safe-contracts/contracts/base/"
+  ]
+}
