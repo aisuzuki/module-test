@@ -1,7 +1,7 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { ethers, config } from "hardhat";
-import { AddressOne, buildSignatureBytes, signHash } from "@gnosis.pm/safe-contracts";
+import { config, ethers } from "hardhat";
+import { AddressOne, buildSafeTransaction, buildSignatureBytes, signHash } from "@gnosis.pm/safe-contracts";
 import { AddressZero } from "@ethersproject/constants";
 import { BigNumber } from "@ethersproject/bignumber";
 import { defaultAbiCoder } from "@ethersproject/abi";
@@ -13,7 +13,7 @@ import {
     deployERC20Token,
     deployTokenTransferModule,
 } from "./utils/setup";
-import { TokenTransferApproval, executeContractCallWithSigners, getErrorMessage, tokenTransferSignTypedData } from "./utils/execution";
+import { TokenTransferApproval, executeContractCallWithSigners, executeTxWithSigners, getErrorMessage, tokenTransferSignTypedData } from "./utils/execution";
 
 describe("TokenTransferModule", function () {
     async function deployWalletFixture() {
@@ -44,7 +44,7 @@ describe("TokenTransferModule", function () {
         const [signerSafeOwner, owner1, tokenReceiver, executor] = await ethers.getSigners();
         const signerSafe = await createGnosisSafeInstanceWithOwners([signerSafeOwner.address], 1, handler.address);
 
-        const safe = await createGnosisSafeInstanceWithOwners([owner1.address, signerSafeOwner.address], 1);
+        const safe = await createGnosisSafeInstanceWithOwners([owner1.address, signerSafeOwner.address], 2);
 
         const erc20Contract = await deployERC20Token();
         // fund token
@@ -167,7 +167,7 @@ describe("TokenTransferModule", function () {
         });
 
         it("Should fail if hash data is mismatched (token amount)", async function () {
-            const { owner1, owner2, tokenReceiver, executor, module } = await loadFixture(deployWalletWithModuleFixture);
+            const { owner1, tokenReceiver, executor, module } = await loadFixture(deployWalletWithModuleFixture);
 
             const hash = await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 1);
             const signature = await signHash(owner1, hash);
@@ -208,6 +208,7 @@ describe("TokenTransferModule", function () {
                 manager: safe.address,
                 to: tokenReceiver.address,
                 amount: 10,
+                nonce: await module.nonce(),
             };
             const signature = await tokenTransferSignTypedData(owner1, module, approval);
 
@@ -232,6 +233,7 @@ describe("TokenTransferModule", function () {
                 manager: safe.address,
                 to: tokenReceiver.address,
                 amount: 10,
+                nonce: await module.nonce(),
             };
             const signature2 = await tokenTransferSignTypedData(owner2, module, approval);
 
@@ -258,10 +260,27 @@ describe("TokenTransferModule", function () {
             await expect(await erc20Contract.balanceOf(safe.address)).to.be.eq(9);
             await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(1);
 
-            await expect(module.connect(executor).transferToken(tokenReceiver.address, 1, signature.data)).revertedWithCustomError(
-                module,
-                "TokenAlreadyTransferred",
-            );
+            // Nonce mismatch
+            await expect(module.connect(executor).transferToken(tokenReceiver.address, 1, signature.data)).to.be.rejectedWith("GS026");
+            await expect(await erc20Contract.balanceOf(safe.address)).to.be.eq(9);
+            await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(1);
+        });
+
+        it("Should not transfer token with signature that was already used", async function () {
+            const { owner1, tokenReceiver, executor, safe, module, erc20Contract } = await loadFixture(deployWalletWithModuleFixture);
+
+            const hash = await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 1);
+            const signature = await signHash(owner1, hash);
+
+            await expect(await erc20Contract.balanceOf(safe.address)).to.be.eq(10);
+            await expect(await module.connect(executor).transferToken(tokenReceiver.address, 1, signature.data))
+                .to.emit(module, "ApprovedTokenTransferred")
+                .withArgs(tokenReceiver.address, 1);
+            await expect(await erc20Contract.balanceOf(safe.address)).to.be.eq(9);
+            await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(1);
+
+            // Nonce mismatch
+            await expect(module.connect(executor).transferToken(tokenReceiver.address, 1, signature.data)).to.be.rejectedWith("GS026");
             await expect(await erc20Contract.balanceOf(safe.address)).to.be.eq(9);
             await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(1);
         });
@@ -273,11 +292,8 @@ describe("TokenTransferModule", function () {
             const signature = await signHash(owner1, hash);
 
             // transfer all tokens to receiver
-            const postTransferHash = await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 10);
-            const postTransferSig = await signHash(owner1, postTransferHash);
-            await expect(await module.connect(executor).transferToken(tokenReceiver.address, 10, postTransferSig.data))
-                .to.emit(module, "ApprovedTokenTransferred")
-                .withArgs(tokenReceiver.address, 10);
+            const data = erc20Contract.interface.encodeFunctionData("transfer", [tokenReceiver.address, 10]);
+            await executeTxWithSigners(safe, buildSafeTransaction({ to: erc20Contract.address, data, safeTxGas: 10000, nonce: await safe.nonce() }), [owner1]);
 
             // transfer token with first signature (tokenReceiver, 1)
             // transfer failes because of insufficient balance
@@ -308,6 +324,7 @@ describe("TokenTransferModule", function () {
                 manager: safe.address,
                 to: tokenReceiver.address,
                 amount: 10,
+                nonce: await module.nonce(),
             };
             const signature = await tokenTransferSignTypedData(owner1, module, approval);
             await expect(module.connect(owner1).transferToken(tokenReceiver.address, 10, signature.data)).to.be.revertedWithCustomError(
@@ -333,6 +350,7 @@ describe("TokenTransferModule", function () {
                 manager: safe.address,
                 to: tokenReceiver.address,
                 amount: 10,
+                nonce: await module.nonce(),
             };
             const signature = await tokenTransferSignTypedData(owner1, module, approval);
             await expect(module.connect(owner1).transferToken(tokenReceiver.address, 10, signature.data)).to.be.revertedWithCustomError(
@@ -354,9 +372,10 @@ describe("TokenTransferModule", function () {
              * It is becuase encoded approval data is
              */
 
-            it("Should sign for responding challenge transaction (1 sig, contract signature)", async () => {
-                const { owner1, signerSafeOwner, tokenReceiver, executor, safe, signerSafe, module, erc20Contract, messageHandler } =
-                    await loadFixture(deployWalletWithModuleForContracgSignatureFixture);
+            it("Should sign for transfer approval hash (1 sig, contract signature)", async () => {
+                const { owner1, signerSafeOwner, tokenReceiver, executor, signerSafe, module, messageHandler } = await loadFixture(
+                    deployWalletWithModuleForContracgSignatureFixture,
+                );
 
                 const hash = await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 10);
                 const messageHash = await messageHandler.getMessageHash(hash);
@@ -377,7 +396,7 @@ describe("TokenTransferModule", function () {
             });
         });
 
-        it("Should sign for responding challenge transaction (approve hash)", async () => {
+        it("Should sign for transfer approval hash(approve hash)", async () => {
             const { owner1, tokenReceiver, executor, safe, module, erc20Contract } = await loadFixture(deployWalletWithModuleFixture);
 
             const hash = ethers.utils.arrayify(await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 10));
@@ -406,10 +425,12 @@ describe("TokenTransferModule", function () {
             await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(10);
         });
 
-        it("Should sign for responding challenge transaction (ecsign)", async () => {
+        it("Should sign for transfer approval hash (ecsign)", async () => {
             const { owner1, tokenReceiver, executor, safe, module, erc20Contract } = await loadFixture(deployWalletWithModuleFixture);
 
-            const hash = ethers.utils.arrayify(await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 10));
+            // const hash = ethers.utils.arrayify(await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 10));
+            const hash = await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 10);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const hardhatAcc = config.networks.hardhat.accounts as any;
             const index = 0;
             const wallet = ethers.Wallet.fromMnemonic(hardhatAcc.mnemonic, hardhatAcc.path + `/${index}`);

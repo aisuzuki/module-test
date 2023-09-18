@@ -29,6 +29,7 @@ export async function createGnosisSafeInstance(): Promise<Contract> {
     const masterCopy = await getSafeMasterCopy();
     const factory = await getSafeFactory();
     const template = await factory.callStatic.createProxyWithNonce(masterCopy.address, "0x", salt);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await factory.createProxyWithNonce(masterCopy.address, "0x", salt).then((tx: any) => tx.wait());
     //    const template = await factory.callStatic.createProxy(masterCopy.address, "0x")
     //    await factory.createProxy(masterCopy.address, "0x").then((tx: any) => tx.wait())

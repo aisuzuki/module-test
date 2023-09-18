@@ -12,12 +12,13 @@ export const EIP_DOMAIN = {
 };
 
 export const EIP712_TOKEN_TRANSFER_MODULE_TYPE = {
-    // "TokenTransferModuleApproval(address module,address manager,address to,uint256 amount)"
+    // "TokenTransferModuleApproval(address module,address manager,address to,uint256 amount,uint256 nonce)"
     TokenTransferModuleApproval: [
         { type: "address", name: "module" },
         { type: "address", name: "manager" },
         { type: "address", name: "to" },
         { type: "uint256", name: "amount" },
+        { type: "uint256", name: "nonce" },
     ],
 };
 
@@ -26,6 +27,7 @@ export interface TokenTransferApproval {
     manager: string;
     to: string;
     amount: number | string;
+    nonce: number | string;
 }
 
 export const getErrorMessage = async (to: string, value: BigNumber, data: string, from: string) => {
@@ -41,6 +43,7 @@ export const getErrorMessage = async (to: string, value: BigNumber, data: string
     return new TextDecoder().decode(returnBuffer);
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const executeTxWithSigners = async (safe: Contract, tx: SafeTransaction, signers: SignerWithAddress[], overrides?: any) => {
     const sigs = await Promise.all(signers.map((signer) => safeSignTypedData(signer, safe, tx)));
     return executeTx(safe, tx, sigs, overrides);
@@ -50,6 +53,7 @@ export const executeContractCallWithSigners = async (
     safe: Contract,
     contract: Contract,
     method: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     params: any[],
     signers: SignerWithAddress[],
     delegateCall?: boolean,

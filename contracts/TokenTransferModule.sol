@@ -32,12 +32,12 @@ contract TokenTransferModule is SignatureDecoder {
     bytes32 public constant DOMAIN_SEPARATOR_TYPEHASH = keccak256("EIP712Domain(uint256 chainId,address verifyingContract)");
 
     bytes32 public constant TOKENTRANSFER_MODULE_APPROVAL_TYPEHASH =
-        keccak256("TokenTransferModuleApproval(address module,address manager,address to,uint256 amount)");
+        keccak256("TokenTransferModuleApproval(address module,address manager,address to,uint256 amount,uint256 nonce)");
 
     address internal manager;
     address public token;
 
-    mapping(bytes32 => bool) public transferredHashes;  // hash => isTokenTransferred
+    uint256 public nonce;
 
     event ApprovedTokenTransferred(address to, uint256 amount);
 
@@ -78,13 +78,9 @@ contract TokenTransferModule is SignatureDecoder {
     function transferToken(address to, uint256 amount, bytes memory signatures) public moduleEnabled {
         bytes memory encodedData = encodeTokenTransferApproval(to, amount);
         bytes32 dataHash = keccak256(encodedData);
-        if (transferredHashes[dataHash]) revert TokenAlreadyTransferred();
 
         GnosisSafe(payable(manager)).checkSignatures(dataHash, encodedData, signatures);
-
-        // nonce increased here. since balance of safe changes, approvalHash that was created with other
-        // parameters (different to/amount) will not be valid anymore.
-        transferredHashes[dataHash] = true;
+        nonce++;
 
         bytes memory data = abi.encodeWithSignature("transfer(address,uint256)", to, amount);
         if (!ModuleManager(manager).execTransactionFromModule(token, 0, data, Enum.Operation.Call)) revert TokenTransferFailed();
@@ -103,7 +99,7 @@ contract TokenTransferModule is SignatureDecoder {
     function encodeTokenTransferApproval(address to, uint256 amount) private view returns (bytes memory) {
         uint256 chainId = block.chainid;
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, address(this)));
-        bytes32 transactionHash = keccak256(abi.encode(TOKENTRANSFER_MODULE_APPROVAL_TYPEHASH, address(this), manager, to, amount));
+        bytes32 transactionHash = keccak256(abi.encode(TOKENTRANSFER_MODULE_APPROVAL_TYPEHASH, address(this), manager, to, amount, nonce));
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator, transactionHash);
     }
 
