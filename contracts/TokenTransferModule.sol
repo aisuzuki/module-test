@@ -33,7 +33,7 @@ interface OwnerManager {
 /// @author ai suzuki
 ///
 /// @notice This module allows safe contract to transfer ERC20 tokens by owner's approval.
-/// @notice This module can be deployed through SafeProxyFactory to save gas for deployal and upgradable
+///         The module can be deployed through SafeProxyFactory to save gas for deployal and upgradable
 contract TokenTransferModule is Singleton, SignatureDecoder {
     /// EIP-712 typehash declaration for TokenTransferModuleApproval
     bytes32 private constant DOMAIN_SEPARATOR_TYPEHASH = keccak256("EIP712Domain(uint256 chainId,address verifyingContract)");
@@ -75,7 +75,7 @@ contract TokenTransferModule is Singleton, SignatureDecoder {
         _;
     }
 
-    /// @notice this module should be initialized by setup function below
+    /// @dev this module must be initialized by setup function below
     constructor() {}
 
     /// Function to initialize this module
@@ -85,7 +85,7 @@ contract TokenTransferModule is Singleton, SignatureDecoder {
         if (manager != address(0x0)) revert ModuleAlreadyInitialized();
         if (tokenContract == address(0x0) || tokenContract == address(0x1)) revert InvalidAddress();
 
-        /// @notice tokenContract address should also be checked if it is ERC20 token contract here
+        /// @dev tokenContract address should also be checked if it is ERC20 token contract here
         /// since ERC20 token contract does not support ERC165, I'll omit it
         /// possible solution is to set supported token list in the module and check if
         /// token contract's name matches with the list.
@@ -116,6 +116,7 @@ contract TokenTransferModule is Singleton, SignatureDecoder {
     ///
     /// @param to token receiver address
     /// @param amount amount of token to transfer
+    /// @return approvalHash hash of token transfer approval to be signed by owners
     function getTokenTransferApprovalHash(address to, uint256 amount) public view moduleEnabled ownerOnly returns (bytes32 approvalHash) {
         if (to == address(0x0) || to == address(0x1)) revert InvalidAddress();
         uint256 balance = IERC20(token).balanceOf(manager);
@@ -125,12 +126,13 @@ contract TokenTransferModule is Singleton, SignatureDecoder {
     }
 
     /// Generate encoded token transfer approval data
-    /// @notice this function is used for ERC-1271 sigining(https://eips.ethereum.org/EIPS/eip-1271).
-    ///         see example code test/TokenTransferModule.spec.ts:381 for more details.
+    /// @dev this function is used for ERC-1271 sigining(https://eips.ethereum.org/EIPS/eip-1271).
+    ///      see example code test/TokenTransferModule.spec.ts:381 for more details.
     ///
     /// @param to token receiver address
     /// @param amount amount of token to transfer
-    function encodeTokenTransferApproval(address to, uint256 amount) public view returns (bytes memory) {
+    /// @return encodedApprovalData encoded token transfer approval data 
+    function encodeTokenTransferApproval(address to, uint256 amount) public view returns (bytes memory encodedApprovalData) {
         uint256 chainId = block.chainid;
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, address(this)));
         bytes32 transactionHash = keccak256(abi.encode(TOKENTRANSFER_MODULE_APPROVAL_TYPEHASH, address(this), manager, to, amount, nonce));

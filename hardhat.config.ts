@@ -5,7 +5,26 @@ import "@nomiclabs/hardhat-ethers";
 import "hardhat-gas-reporter"
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.21",
+  solidity: {
+    compilers: [
+      { 
+        version: "0.8.21",
+        settings: {
+          // See the solidity docs for advice about optimization and evmVersion
+          optimizer: {
+            enabled: true,
+            runs: 200,
+            details: {
+              yul: true,
+              yulDetails: {
+                stackAllocation: true,
+              },
+            }
+          }
+        },
+      }
+    ]
+  },
   gasReporter: {
     enabled: true
   },
