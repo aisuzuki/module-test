@@ -21,7 +21,7 @@ This module has the features below:
 (The optional feature that invalidate signature after set period is not implemented in this version)
 
 #### Flow of token transfer using TokenTransferModule
-Alice wants to send tokens to Bob from her wallet. She pre-approve by signing the transfer transaction, and send the signature with Bob's address and amount to Bob. Bob then interact TokenTransferModule to send transaction with given signature on behalf of Alice. Bob will pay for the transaction fee.
+Alice wants to send tokens to Bob from her wallet. She pre-approves the token transfer by signing, and send the signature with amount to Bob. Bob then interacts TokenTransferModule contract to send transaction with given signature on behalf of Alice. Bob will pay for the transaction fee.
 
 ```mermaid
 sequenceDiagram
@@ -35,11 +35,10 @@ sequenceDiagram
     Module->>Module: encode inputs data and hash
     Module-->>Alice: return token transfer approval hash
     Alice->>Alice: sign hash
-    Alice->>Relay: send signature
+    Alice->>Relay: send signature with transferring amount
     Relay->>Module: transfer token with defined "Bob's address", "amount" and signature
-    Module->>Module: check signature with hash
     Module->>Module: check if hash is signed by owners
-    Module->>Safe: exec transaction from module
+    Module->>Safe: call execTransactionFromModule
     Safe->>ERC20Token: transfer token to Bob's address
 
 ```
