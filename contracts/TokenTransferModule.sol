@@ -128,8 +128,8 @@ contract TokenTransferModule is Singleton, SignatureDecoder {
     ///
     /// @param to token receiver address
     /// @param amount amount of token to transfer
-    /// @return encodedApprovalData encoded token transfer approval data 
-    function encodeTokenTransferApproval(address to, uint256 amount) public view returns (bytes memory encodedApprovalData) {
+    /// @return encodedApprovalData encoded token transfer approval data
+    function encodeTokenTransferApproval(address to, uint256 amount) public view moduleEnabled returns (bytes memory encodedApprovalData) {
         uint256 chainId = block.chainid;
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, address(this)));
         bytes32 transactionHash = keccak256(abi.encode(TOKENTRANSFER_MODULE_APPROVAL_TYPEHASH, address(this), manager, to, amount, nonce));

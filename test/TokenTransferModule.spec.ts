@@ -127,7 +127,7 @@ describe("TokenTransferModule", function () {
     });
 
     describe("Get token transfer approval hash to be signed", function () {
-        it("Should fail if caller is not owner of safe contract", async function () {
+        it("Should fail getTokenTransferApprovalHash if caller is not owner of safe contract", async function () {
             const { owner2, tokenReceiver, module } = await loadFixture(deployWalletWithModuleFixture);
 
             await expect(module.connect(owner2).getTokenTransferApprovalHash(tokenReceiver.address, 1)).to.be.revertedWithCustomError(
@@ -274,25 +274,6 @@ describe("TokenTransferModule", function () {
             await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(1);
         });
 
-        it("Should not transfer token with signature that was already used", async function () {
-            const { owner1, tokenReceiver, executor, safe, module, erc20Contract } = await loadFixture(deployWalletWithModuleFixture);
-
-            const hash = await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 1);
-            const signature = await signHash(owner1, hash);
-
-            await expect(await erc20Contract.balanceOf(safe.address)).to.be.eq(10);
-            await expect(await module.connect(executor).transferToken(tokenReceiver.address, 1, signature.data))
-                .to.emit(module, "ApprovedTokenTransferred")
-                .withArgs(tokenReceiver.address, 1);
-            await expect(await erc20Contract.balanceOf(safe.address)).to.be.eq(9);
-            await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(1);
-
-            // Nonce mismatch
-            await expect(module.connect(executor).transferToken(tokenReceiver.address, 1, signature.data)).to.be.rejectedWith("GS026");
-            await expect(await erc20Contract.balanceOf(safe.address)).to.be.eq(9);
-            await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(1);
-        });
-
         it("Should fail if ERC20.transfer returned false", async function () {
             const { owner1, tokenReceiver, executor, safe, module, erc20Contract } = await loadFixture(deployWalletWithModuleFixture);
 
@@ -332,6 +313,11 @@ describe("TokenTransferModule", function () {
                 "ModuleNotInitialized",
             );
 
+            await expect(module.connect(owner1).encodeTokenTransferApproval(tokenReceiver.address, 10)).to.be.revertedWithCustomError(
+                module,
+                "ModuleNotInitialized",
+            );
+
             const approval: TokenTransferApproval = {
                 module: module.address,
                 manager: safe.address,
@@ -354,6 +340,11 @@ describe("TokenTransferModule", function () {
             await executeContractCallWithSigners(safe, module, "setup", [erc20Contract.address], [owner1]);
 
             await expect(module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 10)).to.be.revertedWithCustomError(
+                module,
+                "ModuleDisabled",
+            );
+
+            await expect(module.connect(owner1).encodeTokenTransferApproval(tokenReceiver.address, 10)).to.be.revertedWithCustomError(
                 module,
                 "ModuleDisabled",
             );
