@@ -2,8 +2,8 @@
 pragma solidity ^0.8.21;
 import {SignatureDecoder} from "@gnosis.pm/safe-contracts/contracts/common/SignatureDecoder.sol";
 import {Singleton} from "@gnosis.pm/safe-contracts/contracts/common/Singleton.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {Enum} from "@gnosis.pm/safe-contracts/contracts/common/Enum.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 /// Interface definition for GnosisSafe
 /// @notice these 3 contract interfaces are defined here to avoid importing whole contract codes.
@@ -126,8 +126,8 @@ contract TokenTransferModule is Singleton, SignatureDecoder {
     }
 
     /// Generate encoded token transfer approval data
-    /// @dev this function is used for ERC-1271 sigining(https://eips.ethereum.org/EIPS/eip-1271).
-    ///      see example code test/TokenTransferModule.spec.ts:381 for more details.
+    /// @notice this function is used for ERC-1271 sigining(https://eips.ethereum.org/EIPS/eip-1271).
+    ///         See example code test/TokenTransferModule.spec.ts:381 for more details.
     ///
     /// @param to token receiver address
     /// @param amount amount of token to transfer
