@@ -72,7 +72,7 @@ contract TokenTransferModule is Singleton, SignatureDecoder {
         _;
     }
 
-    /// @dev this module must be initialized by setup function below
+    /// @dev This module must be initialized by setup function below
     constructor() {}
 
     /// Function to initialize this module
