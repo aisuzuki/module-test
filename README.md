@@ -1,6 +1,10 @@
 # module-test
 home task for a module development of safe contract
 
+# Development environment
+- Solidity ver 0.8.21
+- Hardhat ver 2.17.3
+
 # Setup and Test
 Setup environment:
 ```
