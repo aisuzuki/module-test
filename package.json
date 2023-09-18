@@ -7,6 +7,7 @@
     "test": "hardhat test",
     "compile": "hardhat compile",
     "coverage": "hardhat coverage",
+    "doc": "hardhat docgen",
     "format": "prettier 'contracts/**/*.sol' -w && prettier 'test/**/*.ts' -w",
     "solhint": "solhint 'contracts/**/*.sol'",
     "linter": "eslint  'test/**/*.ts' --max-warnings 0 --fix"
@@ -44,5 +45,8 @@
     "ts-node": "^10.9.1",
     "typechain": "^8.1.0",
     "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "solidity-docgen": "^0.6.0-beta.36"
   }
 }
