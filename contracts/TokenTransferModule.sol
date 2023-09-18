@@ -6,13 +6,11 @@ import {Enum} from "@gnosis.pm/safe-contracts/contracts/common/Enum.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 /// Interface definition for GnosisSafe
-/// @notice these 3 contract interfaces are defined here to avoid importing whole contract codes.
-// solhint-disable-next-line one-contract-per-file
+/// @dev these 3 contract interfaces are defined here to avoid importing whole contract codes.
 interface GnosisSafe {
     function checkSignatures(bytes32 dataHash, bytes memory data, bytes memory signatures) external view;
 }
 
-// solhint-disable-next-line one-contract-per-file
 interface ModuleManager {
     function execTransactionFromModule(
         address to,
@@ -24,7 +22,6 @@ interface ModuleManager {
     function isModuleEnabled(address module) external view returns (bool);
 }
 
-// solhint-disable-next-line one-contract-per-file
 interface OwnerManager {
     function isOwner(address owner) external view returns (bool);
 }
