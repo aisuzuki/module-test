@@ -31,8 +31,6 @@ export async function createGnosisSafeInstance(): Promise<Contract> {
     const template = await factory.callStatic.createProxyWithNonce(masterCopy.address, "0x", salt);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await factory.createProxyWithNonce(masterCopy.address, "0x", salt).then((tx: any) => tx.wait());
-    //    const template = await factory.callStatic.createProxy(masterCopy.address, "0x")
-    //    await factory.createProxy(masterCopy.address, "0x").then((tx: any) => tx.wait())
     const safe = await ethers.getContractFactory(gnosisSafeCompiled.abi, gnosisSafeCompiled.bytecode);
     return safe.attach(template);
 }
@@ -42,7 +40,7 @@ export async function createGnosisSafeInstanceWithOwners(
     threshold?: number,
     fallbackHandler?: string,
     logGasUsage?: boolean,
-) {
+): Promise<Contract> {
     const safe = await createGnosisSafeInstance();
     await logGas(
         `Setup Safe with ${owners.length} owner(s)${fallbackHandler && fallbackHandler !== AddressZero ? " and fallback handler" : ""}`,
@@ -52,29 +50,26 @@ export async function createGnosisSafeInstanceWithOwners(
     return safe;
 }
 
-export async function createCompatibilityFallbackHandler() {
+export async function createCompatibilityFallbackHandler(): Promise<Contract> {
     return ethers.getContractFactory(compatibilityFallbackHandlerCompiled.abi, compatibilityFallbackHandlerCompiled.bytecode);
 }
 
-export async function createCompatibilityFallbackHandlerInstance() {
+export async function createCompatibilityFallbackHandlerInstance(): Promise<Contract> {
     const handlerContract = await createCompatibilityFallbackHandler();
     const handler = await handlerContract.deploy();
     return handler.deployed();
 }
 
-/**
- * Deploy TokenTransferModule
- *
- * @note I personally prefer module to be upgradable, and deploy it as proxy.
- *       To simplify codes, I will not use proxy factory here.
- *
- * @param safeAddress
- * @param tokenAddress
- */
 export async function deployTokenTransferModule(): Promise<Contract> {
     const module = await ethers.getContractFactory("TokenTransferModule");
-    const instance = await module.deploy();
-    return instance.deployed();
+    const masterCopy = await (await module.deploy()).deployed();
+    const salt = Math.floor(Math.random() * (Number.MAX_SAFE_INTEGER - 0 + 1)) + 0;
+    const factory = await getSafeFactory();
+    const template = await factory.callStatic.createProxyWithNonce(masterCopy.address, "0x", salt);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await factory.createProxyWithNonce(masterCopy.address, "0x", salt).then((tx: any) => tx.wait());
+    const instance = await ethers.getContractFactory("TokenTransferModule");
+    return instance.attach(template);
 }
 
 export async function deployERC20Token(): Promise<Contract> {

@@ -13,7 +13,13 @@ import {
     deployERC20Token,
     deployTokenTransferModule,
 } from "./utils/setup";
-import { TokenTransferApproval, executeContractCallWithSigners, executeTxWithSigners, getErrorMessage, tokenTransferSignTypedData } from "./utils/execution";
+import {
+    TokenTransferApproval,
+    executeContractCallWithSigners,
+    executeTxWithSigners,
+    getErrorMessage,
+    tokenTransferSignTypedData,
+} from "./utils/execution";
 
 describe("TokenTransferModule", function () {
     async function deployWalletFixture() {
@@ -44,7 +50,7 @@ describe("TokenTransferModule", function () {
         const [signerSafeOwner, owner1, tokenReceiver, executor] = await ethers.getSigners();
         const signerSafe = await createGnosisSafeInstanceWithOwners([signerSafeOwner.address], 1, handler.address);
 
-        const safe = await createGnosisSafeInstanceWithOwners([owner1.address, signerSafeOwner.address], 2);
+        const safe = await createGnosisSafeInstanceWithOwners([owner1.address, signerSafe.address], 1);
 
         const erc20Contract = await deployERC20Token();
         // fund token
@@ -115,6 +121,8 @@ describe("TokenTransferModule", function () {
 
             await expect(await safe.isModuleEnabled(module.address)).to.be.true;
             await expect(await module.token()).to.be.deep.eq(erc20Contract.address);
+            await expect(await module.NAME()).to.be.deep.eq("TokenTransferModule");
+            await expect(await module.VERSION()).to.be.deep.eq("1.0.0");
         });
     });
 
@@ -293,7 +301,11 @@ describe("TokenTransferModule", function () {
 
             // transfer all tokens to receiver
             const data = erc20Contract.interface.encodeFunctionData("transfer", [tokenReceiver.address, 10]);
-            await executeTxWithSigners(safe, buildSafeTransaction({ to: erc20Contract.address, data, safeTxGas: 10000, nonce: await safe.nonce() }), [owner1]);
+            await executeTxWithSigners(
+                safe,
+                buildSafeTransaction({ to: erc20Contract.address, data, safeTxGas: 10000, nonce: await safe.nonce() }),
+                [owner1],
+            );
 
             // transfer token with first signature (tokenReceiver, 1)
             // transfer failes because of insufficient balance
@@ -307,6 +319,7 @@ describe("TokenTransferModule", function () {
             await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(10);
         });
     });
+
     describe("Module enabled/disabled", function () {
         it("Should fail if module is not initialized", async () => {
             const { owner1, tokenReceiver, safe, erc20Contract } = await loadFixture(deployWalletFixture);
@@ -365,35 +378,27 @@ describe("TokenTransferModule", function () {
             // tested through items above
         });
 
-        describe.skip("Contract signature", async () => {
-            /**
-             * @note executing module with contract signature is not supported.
-             *
-             * It is becuase encoded approval data is
-             */
+        it("Should sign for transfer approval hash (1 sig, contract signature)", async () => {
+            const { owner1, signerSafeOwner, tokenReceiver, executor, signerSafe, module, messageHandler } = await loadFixture(
+                deployWalletWithModuleForContracgSignatureFixture,
+            );
 
-            it("Should sign for transfer approval hash (1 sig, contract signature)", async () => {
-                const { owner1, signerSafeOwner, tokenReceiver, executor, signerSafe, module, messageHandler } = await loadFixture(
-                    deployWalletWithModuleForContracgSignatureFixture,
-                );
+            const hash = await module.connect(owner1).encodeTokenTransferApproval(tokenReceiver.address, 10);
+            const messageHash = await messageHandler.getMessageHash(hash);
+            const signerSafeOwnerSig = await buildSignatureBytes([await signHash(signerSafeOwner, messageHash)]);
+            const encodedSignerOwnerSign = defaultAbiCoder.encode(["bytes"], [signerSafeOwnerSig]).slice(66);
 
-                const hash = await module.connect(owner1).getTokenTransferApprovalHash(tokenReceiver.address, 10);
-                const messageHash = await messageHandler.getMessageHash(hash);
-                const signerSafeOwnerSig = await buildSignatureBytes([await signHash(signerSafeOwner, messageHash)]);
-                const encodedSignerOwnerSign = defaultAbiCoder.encode(["bytes"], [signerSafeOwnerSig]).slice(66);
+            const signature =
+                "0x" +
+                "000000000000000000000000" +
+                signerSafe.address.slice(2) +
+                "0000000000000000000000000000000000000000000000000000000000000041" +
+                "00" + // r, s, v
+                encodedSignerOwnerSign; // attached signature by signerSafe's owner
 
-                const signature =
-                    "0x" +
-                    "000000000000000000000000" +
-                    signerSafe.address.slice(2) +
-                    "0000000000000000000000000000000000000000000000000000000000000041" +
-                    "00" + // r, s, v
-                    encodedSignerOwnerSign;
-
-                await expect(await module.connect(executor).transferToken(tokenReceiver.address, 10, signature))
-                    .to.emit(module, "ApprovedTokenTransferred")
-                    .withArgs(tokenReceiver.address, 10);
-            });
+            await expect(await module.connect(executor).transferToken(tokenReceiver.address, 10, signature))
+                .to.emit(module, "ApprovedTokenTransferred")
+                .withArgs(tokenReceiver.address, 10);
         });
 
         it("Should sign for transfer approval hash(approve hash)", async () => {
@@ -446,22 +451,4 @@ describe("TokenTransferModule", function () {
             await expect(await erc20Contract.balanceOf(tokenReceiver.address)).to.be.eq(10);
         });
     });
-
-    // "solidity-coverage": "^0.8.4",
-    /*
-describe("Transfers", function () {
-  it("Should transfer the funds to the owner", async function () {
-    const { lock, unlockTime, lockedAmount, owner } = await loadFixture(
-      deployOneYearLockFixture
-    );
-
-    await time.increaseTo(unlockTime);
-
-    await expect(lock.withdraw()).to.changeEtherBalances(
-      [owner, lock],
-      [lockedAmount, -lockedAmount]
-    );
-  });
-});
-*/
 });
