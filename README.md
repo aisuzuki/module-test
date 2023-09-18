@@ -1,12 +1,12 @@
 # module-test
 home task for a module development of safe contract
 
-# Setup an test
+# Setup and Test
 Setup environment:
 ```
 $ yarn install && yarn run compile
 ```
-Check test coverage for contracts:
+Check test coverage of contract:
 ```
 $ yarn run coverage
 ```
@@ -18,7 +18,7 @@ This module has the features below:
 - Deployable through SafeProxyFactory
 - Supports all signature types GnosisSafe accepts
 - Supports multiple signatures (optional feature implementation)
-(The optional feature that invalidate signature after set period is not implemented in this version)
+(The optional feature that invalidates signature after set period is not implemented in this version)
 
 #### Flow of token transfer using TokenTransferModule
 Alice wants to send tokens to Bob from her wallet. She pre-approves the token transfer by signing, and send the signature with amount to Bob. Bob then interacts TokenTransferModule contract to send transaction with given signature on behalf of Alice. Bob will pay for the transaction fee.
