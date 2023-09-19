@@ -22,9 +22,18 @@ This module has the features below:
 - Deployable through SafeProxyFactory
 - Supports all signature types GnosisSafe accepts
 - Supports multiple signatures (optional feature implementation)
-(The optional feature that invalidates signature after set period is not implemented in this version)
 
-#### Flow of token transfer using TokenTransferModule
+Note:
+The optional feature that invalidates signature after set period is not implemented in this version of module
+
+## Source code and test
+**Solidity file**
+- [TokenTransferModule.sol](contracts/TokenTransferModule.sol)
+
+**Test cases for TokenTrnasferModule**
+- [TokenTransferModule.spec.ts](test/TokenTransferModule.spec.ts)
+
+## Flow of token transfer using TokenTransferModule
 Alice wants to send tokens to Bob from her wallet. She pre-approves the token transfer by signing, and send the signature with amount to Bob. Bob then interacts TokenTransferModule contract to send transaction with given signature on behalf of Alice. Bob will pay for the transaction fee.
 
 ```mermaid
