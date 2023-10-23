@@ -5,7 +5,6 @@ import { AddressOne, buildSafeTransaction, buildSignatureBytes, signHash } from 
 import { AddressZero } from "@ethersproject/constants";
 import { BigNumber } from "@ethersproject/bignumber";
 import { defaultAbiCoder } from "@ethersproject/abi";
-import { ecsign, toBuffer } from "ethereumjs-util";
 import {
     createCompatibilityFallbackHandlerInstance,
     createCompatibilityFallbackHandler,
@@ -216,7 +215,7 @@ describe("TokenTransferModule", function () {
                 manager: safe.address,
                 to: tokenReceiver.address,
                 amount: 10,
-                nonce: await module.nonce(),
+                nonce: await module.nonces(tokenReceiver.address),
             };
             const signature = await tokenTransferSignTypedData(owner1, module, approval);
 
@@ -241,7 +240,7 @@ describe("TokenTransferModule", function () {
                 manager: safe.address,
                 to: tokenReceiver.address,
                 amount: 10,
-                nonce: await module.nonce(),
+                nonce: await module.nonces(tokenReceiver.address),
             };
             const signature2 = await tokenTransferSignTypedData(owner2, module, approval);
 
@@ -323,7 +322,7 @@ describe("TokenTransferModule", function () {
                 manager: safe.address,
                 to: tokenReceiver.address,
                 amount: 10,
-                nonce: await module.nonce(),
+                nonce: await module.nonces(tokenReceiver.address),
             };
             const signature = await tokenTransferSignTypedData(owner1, module, approval);
             await expect(module.connect(owner1).transferToken(tokenReceiver.address, 10, signature.data)).to.be.revertedWithCustomError(
@@ -354,7 +353,7 @@ describe("TokenTransferModule", function () {
                 manager: safe.address,
                 to: tokenReceiver.address,
                 amount: 10,
-                nonce: await module.nonce(),
+                nonce: await module.nonces(tokenReceiver.address),
             };
             const signature = await tokenTransferSignTypedData(owner1, module, approval);
             await expect(module.connect(owner1).transferToken(tokenReceiver.address, 10, signature.data)).to.be.revertedWithCustomError(
@@ -431,8 +430,8 @@ describe("TokenTransferModule", function () {
             const index = 0;
             const wallet = ethers.Wallet.fromMnemonic(hardhatAcc.mnemonic, hardhatAcc.path + `/${index}`);
 
-            const signatureData = ecsign(toBuffer(hash), toBuffer(wallet.privateKey));
-            const signature = "0x" + signatureData.r.toString("hex") + signatureData.s.toString("hex") + signatureData.v.toString(16);
+            const key = new ethers.utils.SigningKey(wallet.privateKey);
+            const signature = ethers.utils.joinSignature(key.signDigest(hash));
 
             await expect(await erc20Contract.balanceOf(safe.address)).to.be.eq(10);
             await expect(await module.connect(executor).transferToken(tokenReceiver.address, 10, signature))
